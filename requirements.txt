@@ -1,0 +1,20 @@
+# Web Framework & Server
+fastapi>=0.110.0
+uvicorn[standard]>=0.28.0
+pydantic>=2.6.0
+
+# Database & Multi-Tenancy
+sqlalchemy>=2.0.28
+psycopg2-binary>=2.9.9
+
+# Background Tasks & Scheduler
+apscheduler>=3.10.4
+
+# Asynchronous HTTP Client & OSINT Connectors
+httpx>=0.27.0
+python-dotenv>=1.0.1
+
+# Authentication & Security (JWT)
+pyjwt>=2.8.0
+passlib[bcrypt]>=1.7.4
+python-multipart>=0.0.9
