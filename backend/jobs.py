@@ -52,7 +52,8 @@ async def scan_watchlist():
         }
         
         score, verdict = calculate_confidence_score(live_source_results)
-        print(f"        -> AbuseIPDB Score: {abuse_result.get('data', {}).get('abuseConfidenceScore', 'N/A')}", flush=True)
+        print(f"        -> VirusTotal Flagged: {vt_result.get('is_flagged', False)}", flush=True)
+        print(f"        -> AbuseIPDB Flagged: {abuse_result.get('is_flagged', False)}", flush=True)
         print(f"        -> Final Engine Verdict: {verdict.upper()} (Score: {score})", flush=True)
         
         # 3. Update the database with the new scan time
