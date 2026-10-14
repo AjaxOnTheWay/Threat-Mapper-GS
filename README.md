@@ -8,6 +8,7 @@ ThreatMapper is a high-performance, multi-tenant Threat Intelligence, IOC Monito
 - **JWT Authentication & RBAC**: Secure JSON Web Token authentication with bcrypt password hashing and role-based access control (`analyst`, `admin`, `superadmin`).
 - **Real-Time OSINT Threat Intelligence**: Concurrent asynchronous enrichment via VirusTotal v3 and AbuseIPDB v2 with confidence scoring and automated verdicts.
 - **Continuous Watchlist Monitoring**: Automated background scheduler scans watchlisted IOCs at configurable intervals.
+- **IOC Data Retention**: Daily cleanup purges IOC intelligence records not seen in the past 90 days; watchlists and account data are retained.
 - **SIEM Push Integration**: Dispatches threat detections and alerts to connected SIEM solutions (e.g., Splunk HTTP Event Collector).
 - **STIX 2.1 Threat Intel Export**: Generates standardized STIX 2.1 JSON indicator bundles for downstream security workflows.
 - **Interactive OpenAPI Documentation**: Swagger UI with built-in OAuth2 "Authorize" support.
