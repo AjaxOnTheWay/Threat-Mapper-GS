@@ -30,15 +30,13 @@ def validate_and_normalize_ioc(ioc_value: str, ioc_type: str) -> str:
 # --- 2. Canonical Confidence Scoring ---
 
 def calculate_confidence_score(source_results: Dict[str, Any]) -> tuple[float, str]:
-    """
-    Computes a composite score across all queried sources and determines the final verdict.
-    """
-    # Example weights mapping high-fidelity engines like VirusTotal heavier
+    """Computes a composite score across all queried sources and determines the final verdict."""
     weights = {
         "virustotal": 10.0,
         "abuseipdb": 7.0,
         "urlhaus": 8.0,
-        "misp": 9.0
+        "misp": 9.0,
+        "hibp": 6.0  # <-- Added HIBP weight for email breaches
     }
     
     total_queried_weight = 0.0
@@ -47,22 +45,19 @@ def calculate_confidence_score(source_results: Dict[str, Any]) -> tuple[float, s
     for source, data in source_results.items():
         if source in weights:
             total_queried_weight += weights[source]
-            # Assuming 'is_flagged' is a boolean extracted from the raw API payload
             if data.get("is_flagged"):
                 total_flagged_weight += weights[source]
                 
     if total_queried_weight == 0:
         return 0.0, "not currently known as bad"
         
-    # v2 Formula: (Sum of Flagged Weights / Sum of All Queried Weights) * 100
     confidence_score = (total_flagged_weight / total_queried_weight) * 100
     
-    # Verdict Thresholds
     if confidence_score > 60:
         verdict = "malicious"
     elif 21 <= confidence_score <= 60:
         verdict = "suspicious"
     else:
-        verdict = "not currently known as bad" # Never guaranteed as safe
+        verdict = "not currently known as bad"
         
     return round(confidence_score, 2), verdict

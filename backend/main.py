@@ -12,7 +12,13 @@ from database import engine, get_db
 import models
 from jobs import start_scheduler
 from engine import validate_and_normalize_ioc, calculate_confidence_score
-from connectors import fetch_virustotal, fetch_abuseipdb
+from connectors import (
+    fetch_virustotal, 
+    fetch_abuseipdb, 
+    fetch_urlhaus, 
+    fetch_misp, 
+    fetch_hibp
+)
 from auth import (
     hash_password,
     verify_password,
