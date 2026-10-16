@@ -1,11 +1,18 @@
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from datetime import datetime
+from datetime import datetime, timedelta
 import asyncio
 from database import SessionLocal
 import models
-from connectors import fetch_virustotal, fetch_abuseipdb
+from connectors import (
+    fetch_virustotal, 
+    fetch_abuseipdb,
+    fetch_urlhaus,
+    fetch_misp,
+    fetch_hibp
+)
 from engine import calculate_confidence_score
 from siem import push_to_splunk
+
 
 scheduler = AsyncIOScheduler()
 
@@ -43,19 +50,29 @@ async def scan_watchlist():
         
         vt_task = fetch_virustotal(record['ioc_value'], record['ioc_type'])
         abuse_task = fetch_abuseipdb(record['ioc_value'], record['ioc_type'])
+        urlhaus_task = fetch_urlhaus(record['ioc_value'], record['ioc_type'])
+        misp_task = fetch_misp(record['ioc_value'], record['ioc_type'])
+        hibp_task = fetch_hibp(record['ioc_value'], record['ioc_type'])
         
-        vt_result, abuse_result = await asyncio.gather(vt_task, abuse_task)
+        vt_result, abuse_result, urlhaus_result, misp_result, hibp_result = await asyncio.gather(
+            vt_task, abuse_task, urlhaus_task, misp_task, hibp_task
+        )
         
         live_source_results = {
             "virustotal": vt_result,
-            "abuseipdb": abuse_result
+            "abuseipdb": abuse_result,
+            "urlhaus": urlhaus_result,
+            "misp": misp_result,
+            "hibp": hibp_result
         }
         
         score, verdict = calculate_confidence_score(live_source_results)
         print(f"        -> VirusTotal Flagged: {vt_result.get('is_flagged', False)}", flush=True)
         print(f"        -> AbuseIPDB Flagged: {abuse_result.get('is_flagged', False)}", flush=True)
+        print(f"        -> URLhaus Flagged: {urlhaus_result.get('is_flagged', False)}", flush=True)
+        print(f"        -> MISP Flagged: {misp_result.get('is_flagged', False)}", flush=True)
+        print(f"        -> HIBP Flagged: {hibp_result.get('is_flagged', False)}", flush=True)
         print(f"        -> Final Engine Verdict: {verdict.upper()} (Score: {score})", flush=True)
-        
         # 3. Update the database with the new scan time
         # 3. Update the database and Alert the SIEM
         try:
@@ -102,8 +119,27 @@ async def scan_watchlist():
             update_db.close()
 
 def run_retention_cleanup():
-    print(f"[{datetime.now()}] [CLEANUP] CRON JOB: Sweeping database for records older than 90 days...", flush=True)
-
+    print(f"\n[{datetime.utcnow()}] [CLEANUP] CRON JOB: Sweeping database for records older than 90 days...", flush=True)
+    db = SessionLocal()
+    try:
+        # Calculate the exact date 90 days ago
+        cutoff_date = datetime.utcnow() - timedelta(days=90)
+        
+        # 1. Purge old IOC cache records
+        deleted_iocs = db.query(models.IOCRecord).filter(models.IOCRecord.last_seen < cutoff_date).delete()
+        
+        # 2. Purge old UI Alerts
+        deleted_alerts = db.query(models.AlertRecord).filter(models.AlertRecord.created_at < cutoff_date).delete()
+        
+        db.commit()
+        print(f" -> [SUCCESS] Purged {deleted_iocs} old IOCs and {deleted_alerts} old alerts.", flush=True)
+        
+    except Exception as e:
+        print(f" -> [ERROR] Cleanup Job Failed: {e}", flush=True)
+        db.rollback()
+    finally:
+        db.close()
+        
 def start_scheduler():
     scheduler.add_job(scan_watchlist, 'interval', minutes=3)
     scheduler.add_job(run_retention_cleanup, 'cron', hour=0, minute=0)
