@@ -211,15 +211,23 @@ async def lookup_ioc(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     
-    # Query live sources concurrently
+   # Query live sources concurrently
     vt_task = fetch_virustotal(clean_ioc, request.ioc_type)
     abuseipdb_task = fetch_abuseipdb(clean_ioc, request.ioc_type)
+    urlhaus_task = fetch_urlhaus(clean_ioc, request.ioc_type)
+    misp_task = fetch_misp(clean_ioc, request.ioc_type)
+    hibp_task = fetch_hibp(clean_ioc, request.ioc_type)
 
-    vt_result, abuse_result = await asyncio.gather(vt_task, abuseipdb_task)
+    vt_result, abuse_result, urlhaus_result, misp_result, hibp_result = await asyncio.gather(
+        vt_task, abuseipdb_task, urlhaus_task, misp_task, hibp_task
+    )
     
     live_source_results = {
         "virustotal": vt_result,
-        "abuseipdb": abuse_result
+        "abuseipdb": abuse_result,
+        "urlhaus": urlhaus_result,
+        "misp": misp_result,
+        "hibp": hibp_result
     }
     
     score, verdict = calculate_confidence_score(live_source_results)
