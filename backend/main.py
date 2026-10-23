@@ -440,3 +440,74 @@ def export_stix21(
         ]
     }
     return stix_bundle
+
+
+# --- SIEM Live Feed (Pull Mode) ---
+@app.get("/api/feed")
+async def get_live_feed(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """Token-authenticated endpoint for Wazuh to poll active threats."""
+    # Find all IOCs this specific organization is watching
+    watched = db.query(models.WatchlistRecord.ioc_value).filter(
+        models.WatchlistRecord.org_id == current_user.org_id
+    ).all()
+    watched_values = [w[0] for w in watched]
+
+    if not watched_values:
+        return {"org_id": current_user.org_id, "feed": []}
+
+    # Cross-reference with the cache to find which ones are actually bad
+    active_threats = db.query(models.IOCRecord).filter(
+        models.IOCRecord.ioc_value.in_(watched_values),
+        models.IOCRecord.verdict.in_(["malicious", "suspicious"])
+    ).all()
+
+    return {
+        "org_id": current_user.org_id,
+        "feed": [
+            {
+                "ioc_value": t.ioc_value,
+                "ioc_type": t.ioc_type,
+                "verdict": t.verdict,
+                "confidence_score": t.confidence_score,
+                "last_seen": t.last_seen
+            } for t in active_threats
+        ]
+    }
+
+# --- Threat Correlation & Dashboard Analytics ---
+@app.get("/api/correlation")
+async def get_correlation(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """Groups threat patterns to populate the UI analytical dashboard."""
+    watched = db.query(models.WatchlistRecord).filter(
+        models.WatchlistRecord.org_id == current_user.org_id
+    ).all()
+    
+    # Calculate distribution of IOC types for the UI charts (e.g., 5 IPs, 2 Hashes)
+    type_distribution = {}
+    for w in watched:
+        type_distribution[w.ioc_type] = type_distribution.get(w.ioc_type, 0) + 1
+        
+    return {
+        "org_id": current_user.org_id,
+        "total_monitored": len(watched),
+        "distribution": type_distribution
+    }
+
+# --- Analyst Alerts ---
+@app.get("/api/alerts")
+async def get_alerts(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """Fetches chronological security alerts for the frontend UI."""
+    alerts = db.query(models.AlertRecord).filter(
+        models.AlertRecord.org_id == current_user.org_id
+    ).order_by(models.AlertRecord.created_at.desc()).all()
+    
+    return {"org_id": current_user.org_id, "alerts": alerts}
