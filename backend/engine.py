@@ -9,21 +9,26 @@ def validate_and_normalize_ioc(ioc_value: str, ioc_type: str) -> str:
     burning external API quotas. Malformed inputs should trigger a 400 error.
     """
     # Normalize: lowercase and strip trailing slashes
-    clean_ioc = ioc_value.lower().strip().rstrip('/')
+    clean_ioc = ioc_value.strip().lower()
     
     if ioc_type == "ip":
-        # Basic IPv4 validation pattern
-        pattern = re.compile(r"^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$")
-        if not pattern.match(clean_ioc):
+        if not re.match(r"^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$", clean_ioc):
             raise ValueError(f"Invalid IPv4 format: {clean_ioc}")
             
     elif ioc_type == "hash":
-        # Validates 32-hex (MD5) or 64-hex (SHA256) lengths
-        if len(clean_ioc) not in (32, 64) or not re.fullmatch(r"[a-f0-9]+", clean_ioc):
-            raise ValueError(f"Invalid MD5 or SHA256 hash: {clean_ioc}")
+        if not re.match(r"^([a-f0-9]{32}|[a-f0-9]{64})$", clean_ioc):
+            raise ValueError(f"Invalid MD5 or SHA256 format: {clean_ioc}")
             
-    # Domain/URL validation could be added here
-    
+    elif ioc_type == "domain":
+        # Matches standard RFC 1035 domains (e.g., evil-site.com)
+        if not re.match(r"^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9][a-z0-9-]{0,61}[a-z0-9]$", clean_ioc):
+            raise ValueError(f"Invalid Domain format: {clean_ioc}")
+            
+    elif ioc_type == "url":
+        # Ensures URLs are properly structured
+        if not re.match(r"^https?://[\w\-]+(\.[\w\-]+)+[/#?]?.*$", clean_ioc):
+            raise ValueError(f"Invalid URL format: {clean_ioc}")
+            
     return clean_ioc
 
 
